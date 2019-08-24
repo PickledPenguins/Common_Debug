@@ -63,15 +63,33 @@
 /* Define (if check fail) execution abort function */
 #ifndef CHECK_ABORT
 #	include <stdlib.h> /* needed for abort() */
-#	define CHECK_ABORT abort()
+#	define CHECK_ABORT LOG(LOG_ERR_ID, "CHECK FAIL \n");abort()
 #endif
 
+/*
+** Soft Checks (return True/False)
+*/
+/* Check if expression is true */
+#define SCHECK_TRUE_TERNARY(_EXPR,_if_true,_if_false) (_IS_TRUE(_EXPR) ? _if_true : _if_false)
+#define SCHECK_TRUE_IFELSE(_EXPR,_if_true,_if_false) if(_IS_TRUE(_EXPR)){_if_true}else{_if_false}
+#define SCHECK_TRUE(_EXPR) SCHECK_TRUE_TERNARY(_EXPR,TRUE,FALSE)
+/* Check if value is positive */
+#define SCHECK_TERNARY(_EXPR,_if_true,_if_false) (_IS_TRUE((_VAL)>0) ? _if_true : _if_false)
+
+/* Check if value is non-zero */
+
+/*
+** Hard Checks (calls abort if fail)
+*/
 /* Check if expression is true */
 #define CHECK_TRUE(_EXPR) if(_IS_FALSE(_EXPR)){ CHECK_ABORT; }
 /* Check if value is positive */
 #define CHECK_POSITIVE(_VAL) if(_IS_FALSE((_VAL)>0)){ CHECK_ABORT; }
 /* Check if value is non-zero */
 #define CHECK_NONZERO(_VAL) if(_IS_FALSE(_VAL==0)){ CHECK_ABORT; }
+
+/* Check Pointer */
+#define CEHCK_PTR(_PTR) CHECK_TRUE(_PTR!=NULL)
 
 /* Equivalent to CHECK_TRUE(false)
 ** Useful for indicating parts of the code which should never be reached */
@@ -99,11 +117,11 @@ typedef struct
 */
 typedef enum
 {
-	ID_MEM_BLOCK,
-	ID_LOG_BLOCK,
-	ID_MSG_OUT_BLOCK,
-	ID_MSG_IN_BLOCK,
-} TYPE_BLOCK_TYPES;
+	MEM_BLOCK_TYPE,
+	LOG_BLOCK_TYPE,
+	MSG_OUT_BLOCK_TYPE,
+	MSG_IN_BLOCK_TYPE,
+} ENUM_BLOCK_TYPES;
 
 
 #endif // COMMON_H_INCLUDED
