@@ -9,11 +9,13 @@ TYPE_MEM_BLOCKS g_mem_manager;
 
 
 static TYPE_MEM_BLOCK*
-f_GetNextAvaliableBlock( void );
+f_GetNextAvaliableBlock
+( void );
 
 static TYPE_MEM_BLOCK*
 f_FindBlockFromPayload
 ( void* ptr_payload );
+
 
 void
 MEM_init
@@ -97,6 +99,7 @@ MEM_free
 	return;
 }
 
+
 static TYPE_MEM_BLOCK*
 f_GetNextAvaliableBlock
 ( void )
@@ -145,3 +148,6 @@ f_FindBlockFromPayload
 
 	return( ptr_mem_block );
 }
+
+
+
