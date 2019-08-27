@@ -105,15 +105,19 @@
 typedef struct
 {
 	/* Start of Block */
-	uint8_t  start_byte;
+	int8_t  start_byte;
 
 	/* Block Info */
-	uint16_t type;
-	uint16_t subtype;
+	int16_t primary_type;
+	int16_t secondary_type;
+
+	/* Validation */
+	int16_t checksum_type;
+	int16_t checksum;
 } TYPE_COMMON_HEADER;
 
 /*
-** Block Types
+** Primary Block Types
 */
 typedef enum
 {

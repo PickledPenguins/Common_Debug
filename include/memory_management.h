@@ -14,6 +14,10 @@ typedef struct
 	/* Header Type Info */
 	TYPE_COMMON_HEADER common_header;
 
+	/* Allow for subblocks */
+	int16_t num_mem_blocks_total;
+	int16_t num_mem_blocks_allocated;
+
 	/* Memory Info */
 	int16_t block_id;
 	int16_t allocated_flag;

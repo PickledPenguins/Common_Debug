@@ -7,24 +7,15 @@
 
 int main(void)
 {
-	int* test_ptr[MAX_NUM_MEM_BLOCKS];
-	int i;
+	int* test_ptr;
+
 	MEM_init();
 
-	for(i=0; i<(MAX_NUM_MEM_BLOCKS); i++)
-	{
-		LOG(LOG_ID, "i:%i \n", i);
-		test_ptr[i] = (int*)MEM_allocate( sizeof(int)*10 );
-		CEHCK_PTR( test_ptr[i] );
-	}
+	test_ptr = (int*)MEM_allocate( sizeof(int) );
+	CEHCK_PTR( test_ptr );
 
-
-	for(i=0; i<(MAX_NUM_MEM_BLOCKS); i++)
-	{
-		LOG(LOG_ID, "i:%i \n", i);
-		MEM_free( test_ptr[i] );
-		CEHCK_PTR( test_ptr[i] );
-	}
+	MEM_free( test_ptr );
+	//CEHCK_PTR( test_ptr );
 
 	return 0;
 }

@@ -16,6 +16,14 @@ static TYPE_MEM_BLOCK*
 f_FindBlockFromPayload
 ( void* ptr_payload );
 
+static void*
+f_SecureMemset_v1
+(void* ptr, int val, size_t len);
+
+static void*
+f_SecureMemset_v2
+(void* ptr, int val, size_t len);
+
 
 void
 MEM_init
@@ -53,17 +61,20 @@ MEM_allocate
 
 	/* Allocate memory for block
 	** Optionally clear memory for block */
+	CHECK_TRUE( p_size>0 );
 	ptr_mem_block->ptr_allocated = (void*)malloc( p_size );
 	CEHCK_PTR( ptr_mem_block->ptr_allocated );
 
 	/* Set Common Header */
-	ptr_mem_block->common_header.start_byte = 1;
-	ptr_mem_block->common_header.type       = MEM_BLOCK_TYPE;
-	ptr_mem_block->common_header.subtype    = BARE_MEM_BLOCK_SUBTYPE;
+	ptr_mem_block->common_header.start_byte     = 1;
+	ptr_mem_block->common_header.primary_type   = MEM_BLOCK_TYPE;
+	ptr_mem_block->common_header.secondary_type = BARE_MEM_BLOCK_SUBTYPE;
 
 	/* Set memory block meta */
-  ptr_mem_block->allocated_flag       = 1;
-  ptr_mem_block->allocated_size_bytes = p_size;
+  ptr_mem_block->allocated_flag           = 1;
+  ptr_mem_block->allocated_size_bytes     = p_size;
+  ptr_mem_block->num_mem_blocks_total     = 1;
+  ptr_mem_block->num_mem_blocks_allocated = 1;
 
 	/* Update memory manager meta
 	** Track memory allocated, number of calls, etc */
@@ -77,7 +88,7 @@ void
 MEM_free
 ( void* ptr_allocated )
 {
-	/* pointer block */
+	/* Pointer to block to free */
 	TYPE_MEM_BLOCK* ptr_mem_block;
 
   /* Check block exists */
@@ -88,17 +99,53 @@ MEM_free
   CEHCK_PTR( ptr_mem_block );
 
   /* Free data */
+  //ptr_allocated = f_SecureMemset_v1( (void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK) );
+  //ptr_allocated = f_SecureMemset_v2( (void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK) );
+  //memset((void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK))
   free( ptr_allocated );
 
-  /* Clear meta */
-  memset( (void*)ptr_mem_block, (int)0, sizeof(TYPE_MEM_BLOCK) );
+  /* Clear block meta */
+  ptr_mem_block = f_SecureMemset_v2( (void*)ptr_mem_block, (int)0, sizeof(TYPE_MEM_BLOCK) );
 
   /* Update manager */
 	g_mem_manager.num_mem_blocks_allocated--;
 
+	/* return */
 	return;
 }
 
+
+/***********************************
+** Statics */
+
+static void* (* const volatile zf_ptr_memset)(void*, int, size_t) = memset;
+
+static void*
+f_SecureMemset_v1
+(void* ptr, int val, size_t len)
+{
+	(zf_ptr_memset)(ptr, val, len);
+	return ptr;
+}
+
+static void*
+f_SecureMemset_v2
+(void* ptr, int val, size_t len)
+{
+	volatile uint8_t *p = ptr;
+	while( len-- )
+	{
+		*p++ = val;
+	}
+	return ptr;
+}
+
+static void*
+f_allocate_calloc
+( size_t p_size )
+{
+
+}
 
 static TYPE_MEM_BLOCK*
 f_GetNextAvaliableBlock
@@ -134,7 +181,7 @@ f_FindBlockFromPayload
 
 	/* Find block by matching payload address */
 	ptr_mem_block = &g_mem_manager.mem_blocks[MAX_NUM_MEM_BLOCKS-1];
-	while( (ptr_allocated > &g_mem_manager.mem_blocks[0]) &&
+	while( (ptr_allocated > (void*) &g_mem_manager.mem_blocks[0]) &&
 				 (ptr_mem_block->ptr_allocated != ptr_allocated) )
 	{
 		ptr_mem_block--;
