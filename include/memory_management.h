@@ -14,14 +14,14 @@ typedef struct
 	/* Header Type Info */
 	TYPE_COMMON_HEADER common_header;
 
-	/* Allow for subblocks */
-	int16_t num_mem_blocks_total;
+	/* Memory Sub-Blocks Info */
+	int16_t num_mem_blocks_defined;
 	int16_t num_mem_blocks_allocated;
 
-	/* Memory Info */
+	/* Memory Block Info */
 	int16_t block_id;
+	int16_t num_bytes_allocated;
 	int16_t allocated_flag;
-	size_t  allocated_size_bytes;
 	void*   ptr_allocated;
 } TYPE_MEM_BLOCK;
 
@@ -30,11 +30,15 @@ typedef struct
 */
 typedef struct
 {
-	/* Memory Management Info */
+	/* Memory Blocks Info */
 	int16_t num_mem_blocks_total;
 	int16_t num_mem_blocks_allocated;
 
-	/* Memory Blocks */
+	/* Tracking Info */
+	int16_t num_bytes_allocated_count;
+	int16_t num_mem_blocks_allocated_count;
+
+	/* Memory Blocks*/
 	TYPE_MEM_BLOCK mem_blocks[MAX_NUM_MEM_BLOCKS];
 } TYPE_MEM_BLOCKS;
 

@@ -29,9 +29,13 @@ void
 MEM_init
 ( void )
 {
-  /* Initialize Memory Manager */
-  g_mem_manager.num_mem_blocks_total     = MAX_NUM_MEM_BLOCKS;
+  /* Memory Blocking Info */
+  g_mem_manager.num_mem_blocks_defined     = MAX_NUM_MEM_BLOCKS;
   g_mem_manager.num_mem_blocks_allocated = 0;
+
+  /* Memory Tracking Info */
+  g_mem_manager.num_bytes_allocated_count      = 0;
+  g_mem_manager.num_mem_blocks_allocated_count = 0;
 
   /* Initialize memory blocks */
   CHECK_TRUE( MAX_NUM_MEM_BLOCKS<INT16_MAX );
@@ -71,10 +75,10 @@ MEM_allocate
 	ptr_mem_block->common_header.secondary_type = BARE_MEM_BLOCK_SUBTYPE;
 
 	/* Set memory block meta */
-  ptr_mem_block->allocated_flag           = 1;
-  ptr_mem_block->allocated_size_bytes     = p_size;
-  ptr_mem_block->num_mem_blocks_total     = 1;
-  ptr_mem_block->num_mem_blocks_allocated = 1;
+  ptr_mem_block->allocated_flag            = 1;
+  ptr_mem_block->num_bytes_allocated_total = p_size;
+  ptr_mem_block->num_mem_blocks_defined    = 1;
+  ptr_mem_block->num_mem_blocks_allocated  = 1;
 
 	/* Update memory manager meta
 	** Track memory allocated, number of calls, etc */
