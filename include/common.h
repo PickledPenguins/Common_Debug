@@ -42,7 +42,7 @@
 #	define _HEAD_ARG __FILE__,__LINE__,__func__
 #endif
 /* Hidden Logging Macros */
-#define _FPRINTF(...) fprintf(_LOG_FID, __VA_ARGS__); fflush(_LOG_FID);
+#define _FPRINTF(...) fprintf(_LOG_FID, __VA_ARGS__);fflush(_LOG_FID);
 #define _LOG_HEAD(_ID) _FPRINTF(_HEAD_FMT "%s", _HEAD_ARG, _ID)
 /* Abstracted LOG Call */
 #define LOG(_ID, ...) _LOG_HEAD(_ID); _FPRINTF(__VA_ARGS__);
@@ -63,7 +63,7 @@
 /* Define (if check fail) execution abort function */
 #ifndef CHECK_ABORT
 #	include <stdlib.h> /* needed for abort() */
-#	define CHECK_ABORT LOG(LOG_ERR_ID, "CHECK FAIL \n");abort()
+#	define CHECK_ABORT(_MSG) LOG(LOG_ERR_ID, _MSG);abort()
 #endif
 
 /*
@@ -82,18 +82,18 @@
 ** Hard Checks (calls abort if fail)
 */
 /* Check if expression is true */
-#define CHECK_TRUE(_EXPR) if(_IS_FALSE(_EXPR)){ CHECK_ABORT; }
+#define CHECK_TRUE(_EXPR, _MSG) if(_IS_FALSE(_EXPR)){ CHECK_ABORT(_MSG); }
 /* Check if value is positive */
-#define CHECK_POSITIVE(_VAL) if(_IS_FALSE((_VAL)>0)){ CHECK_ABORT; }
+#define CHECK_POSITIVE(_VAL, _MSG) if(_IS_FALSE((_VAL)>0)){ CHECK_ABORT(_MSG); }
 /* Check if value is non-zero */
-#define CHECK_NONZERO(_VAL) if(_IS_FALSE(_VAL==0)){ CHECK_ABORT; }
+#define CHECK_NONZERO(_VAL, _MSG) if(_IS_FALSE(_VAL==0)){ CHECK_ABORT(_MSG); }
 
 /* Check Pointer */
-#define CEHCK_PTR(_PTR) CHECK_TRUE(_PTR!=NULL)
+#define CEHCK_PTR(_PTR, _MSG) CHECK_TRUE(_PTR!=NULL, _MSG)
 
 /* Equivalent to CHECK_TRUE(false)
 ** Useful for indicating parts of the code which should never be reached */
-#define NOT_REACHABLE() CHECK_TRUE(0)
+#define NOT_REACHABLE() CHECK_TRUE(0, "Not Reachable")
 
 /* ***************************************************************************
 ** Common Types

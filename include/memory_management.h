@@ -1,10 +1,37 @@
 #ifndef MEMORY_MANAGEMENT_H_INCLUDED
 #define MEMORY_MANAGEMENT_H_INCLUDED
 
-#define MAX_NUM_MEM_BLOCKS 10
+/*****************************************************/
 
-void MEM_init( void );
-void* MEM_allocate( size_t p_size );
+#include "../include/common.h"
+
+/*****************************************************/
+
+#define MAX_NUM_MEM_BLOCKS 10
+#define USE_SECURE_MEMSET TRUE
+
+#define MEM_ZERO_FUNCTION(_PTR, _SIZE) MEM_ZeroMemory(_PTR, _SIZE)
+#define CLEAR_MEM MEM_ZERO_FUNCTION
+
+/*****************************************************/
+
+void
+MEM_ZeroMemory
+( void* ptr, size_t p_size );
+
+void
+MEM_init
+( void );
+
+void*
+MEM_allocate
+( size_t p_size );
+
+void
+MEM_free
+( void* ptr_allocated );
+
+/*****************************************************/
 
 /*
 ** Memory Block Header
@@ -31,10 +58,12 @@ typedef struct
 typedef struct
 {
 	/* Memory Blocks Info */
-	int16_t num_mem_blocks_total;
+	int16_t num_mem_blocks_defined;
 	int16_t num_mem_blocks_allocated;
+	int16_t block_id_next;
 
 	/* Tracking Info */
+	int16_t num_bytes_allocated_now;
 	int16_t num_bytes_allocated_count;
 	int16_t num_mem_blocks_allocated_count;
 

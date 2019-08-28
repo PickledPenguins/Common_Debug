@@ -1,20 +1,21 @@
+/*****************************************************
+* FILE NAME *
+* *
+* PURPOSE *
+* *
+*****************************************************/
 
 #include <stdlib.h>
 #include <stdint.h>
 #include "../include/common.h"
 #include "../include/memory_management.h"
 
+/*****************************************************/
+
 /* array of memory blocks */
 TYPE_MEM_BLOCKS g_mem_manager;
 
-
-static TYPE_MEM_BLOCK*
-f_GetNextAvaliableBlock
-( void );
-
-static TYPE_MEM_BLOCK*
-f_FindBlockFromPayload
-( void* ptr_payload );
+/*****************************************************/
 
 static void*
 f_SecureMemset_v1
@@ -24,27 +25,99 @@ static void*
 f_SecureMemset_v2
 (void* ptr, int val, size_t len);
 
+static void*
+f_allocate_calloc
+( size_t p_size );
 
+static TYPE_MEM_BLOCK*
+f_GetNextAvaliableBlock
+( void );
+
+static TYPE_MEM_BLOCK*
+f_FindBlockFromPayload
+( void* ptr_allocated );
+
+static void
+f_DumpGlobalBlock_Long
+( void );
+
+static void
+f_DumpGlobalBlock_Short
+( void );
+
+
+
+/*****************************************************/
+
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
+void
+MEM_ZeroMemory
+( void* ptr, size_t p_size )
+{
+	if( USE_SECURE_MEMSET )
+	{
+		/* Prevent zeroing from being optimized out */
+		//ptr = f_SecureMemset_v1( ptr, (int)0, p_size );
+		ptr = f_SecureMemset_v2( ptr, (int)0, p_size );
+	}
+	else
+	{
+    memset( ptr, (int)0, p_size );
+	}
+	return;
+}
+
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 void
 MEM_init
 ( void )
 {
   /* Memory Blocking Info */
-  g_mem_manager.num_mem_blocks_defined     = MAX_NUM_MEM_BLOCKS;
+  g_mem_manager.num_mem_blocks_defined    = MAX_NUM_MEM_BLOCKS;
   g_mem_manager.num_mem_blocks_allocated = 0;
+  g_mem_manager.block_id_next            = 0;
 
   /* Memory Tracking Info */
+  g_mem_manager.num_bytes_allocated_now        = 0;
   g_mem_manager.num_bytes_allocated_count      = 0;
   g_mem_manager.num_mem_blocks_allocated_count = 0;
 
   /* Initialize memory blocks */
-  CHECK_TRUE( MAX_NUM_MEM_BLOCKS<INT16_MAX );
-  memset( (void*)&g_mem_manager.mem_blocks[0], (int)0, MAX_NUM_MEM_BLOCKS*sizeof(TYPE_MEM_BLOCK));
+  CHECK_TRUE( MAX_NUM_MEM_BLOCKS<INT16_MAX, "Check MAX_NUM_MEM_BLOCKS<INT16_MAX \n" );
+  CLEAR_MEM( (void*)&g_mem_manager.mem_blocks[0], MAX_NUM_MEM_BLOCKS*sizeof(TYPE_MEM_BLOCK) );
+
+  /* Log */
+  f_DumpGlobalBlock_Short();
 
 	/* Return */
 	return;
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 void*
 MEM_allocate
 ( size_t p_size )
@@ -53,41 +126,57 @@ MEM_allocate
 	TYPE_MEM_BLOCK* ptr_mem_block;
 
 	/* Check number of free blocks */
-	if( g_mem_manager.num_mem_blocks_allocated >= MAX_NUM_MEM_BLOCKS )
-	{
-		LOG(LOG_ERR_ID, "Out of memory space. All memory blocks are in use! \n");
-		return( (void*)NULL );
-	}
+	CHECK_TRUE( g_mem_manager.num_mem_blocks_allocated < MAX_NUM_MEM_BLOCKS, "Check num_mem_blocks_allocated < MAX_NUM_MEM_BLOCKS \n");
 
 	/* Find available block */
 	ptr_mem_block = f_GetNextAvaliableBlock();
-	CEHCK_PTR( ptr_mem_block );
+	CEHCK_PTR( ptr_mem_block, "Check ptr_mem_block \n" );
 
 	/* Allocate memory for block
 	** Optionally clear memory for block */
-	CHECK_TRUE( p_size>0 );
-	ptr_mem_block->ptr_allocated = (void*)malloc( p_size );
-	CEHCK_PTR( ptr_mem_block->ptr_allocated );
+	CHECK_TRUE( p_size > 0, "Check p_size > 0 \n" );
+	ptr_mem_block->ptr_allocated = f_allocate_calloc( p_size );
+	CEHCK_PTR( ptr_mem_block->ptr_allocated, "Check ptr_allocated \n" );
 
 	/* Set Common Header */
 	ptr_mem_block->common_header.start_byte     = 1;
 	ptr_mem_block->common_header.primary_type   = MEM_BLOCK_TYPE;
 	ptr_mem_block->common_header.secondary_type = BARE_MEM_BLOCK_SUBTYPE;
+	/* checksums ... */
 
-	/* Set memory block meta */
-  ptr_mem_block->allocated_flag            = 1;
-  ptr_mem_block->num_bytes_allocated_total = p_size;
-  ptr_mem_block->num_mem_blocks_defined    = 1;
-  ptr_mem_block->num_mem_blocks_allocated  = 1;
+	/* Memory Sub-Blocks Info */
+  ptr_mem_block->num_mem_blocks_defined     = 1;
+  ptr_mem_block->num_mem_blocks_allocated   = 1;
+
+	/* Memory Block Info */
+  ptr_mem_block->block_id            = g_mem_manager.block_id_next;
+  ptr_mem_block->num_bytes_allocated = p_size;
+  ptr_mem_block->allocated_flag      = 1;
 
 	/* Update memory manager meta
 	** Track memory allocated, number of calls, etc */
 	g_mem_manager.num_mem_blocks_allocated++;
+	g_mem_manager.block_id_next++;
+  g_mem_manager.num_bytes_allocated_now += p_size;
+	g_mem_manager.num_bytes_allocated_count += p_size;
+	g_mem_manager.num_mem_blocks_allocated_count++;
+
+  /* Log */
+  f_DumpGlobalBlock_Short();
 
 	/* Final checks */
 	return( ptr_mem_block->ptr_allocated );
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 void
 MEM_free
 ( void* ptr_allocated )
@@ -96,42 +185,72 @@ MEM_free
 	TYPE_MEM_BLOCK* ptr_mem_block;
 
   /* Check block exists */
-  CEHCK_PTR( ptr_allocated );
+  CEHCK_PTR( ptr_allocated, "Check ptr_allocated \n" );
 
   /* Find pointer block */
   ptr_mem_block = f_FindBlockFromPayload( ptr_allocated );
-  CEHCK_PTR( ptr_mem_block );
+  CEHCK_PTR( ptr_mem_block, "Check ptr_mem_block \n" );
 
   /* Free data */
-  //ptr_allocated = f_SecureMemset_v1( (void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK) );
-  //ptr_allocated = f_SecureMemset_v2( (void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK) );
-  //memset((void*)ptr_allocated, (int)0, sizeof(TYPE_MEM_BLOCK))
+  CLEAR_MEM(ptr_allocated, ptr_mem_block->num_bytes_allocated);
   free( ptr_allocated );
 
-  /* Clear block meta */
-  ptr_mem_block = f_SecureMemset_v2( (void*)ptr_mem_block, (int)0, sizeof(TYPE_MEM_BLOCK) );
-
   /* Update manager */
+  g_mem_manager.num_bytes_allocated_now -= ptr_mem_block->num_bytes_allocated;
 	g_mem_manager.num_mem_blocks_allocated--;
+
+  /* Clear block meta */
+  CLEAR_MEM(ptr_mem_block, sizeof(TYPE_MEM_BLOCK));
+
+  /* Log */
+  f_DumpGlobalBlock_Short();
 
 	/* return */
 	return;
 }
 
 
-/***********************************
-** Statics */
+/*****************************************************/
+/* Static Functions */
+/*****************************************************/
 
-static void* (* const volatile zf_ptr_memset)(void*, int, size_t) = memset;
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
+static void* (* const volatile f_ptr_memset)(void*, int, size_t) = memset;
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 static void*
 f_SecureMemset_v1
 (void* ptr, int val, size_t len)
 {
-	(zf_ptr_memset)(ptr, val, len);
+	(f_ptr_memset)(ptr, val, len);
 	return ptr;
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 static void*
 f_SecureMemset_v2
 (void* ptr, int val, size_t len)
@@ -144,13 +263,33 @@ f_SecureMemset_v2
 	return ptr;
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 static void*
 f_allocate_calloc
 ( size_t p_size )
 {
-
+	void* ptr;
+	ptr = (void*)calloc( p_size, (size_t)1 );
+	return( ptr );
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 static TYPE_MEM_BLOCK*
 f_GetNextAvaliableBlock
 ( void )
@@ -176,11 +315,19 @@ f_GetNextAvaliableBlock
 	return( ptr_mem_block );
 }
 
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
 static TYPE_MEM_BLOCK*
 f_FindBlockFromPayload
 ( void* ptr_allocated )
 {
-	int16_t i;
 	TYPE_MEM_BLOCK* ptr_mem_block;
 
 	/* Find block by matching payload address */
@@ -191,6 +338,7 @@ f_FindBlockFromPayload
 		ptr_mem_block--;
 	}
 
+
 	/* Check */
 	if( ptr_mem_block->ptr_allocated != ptr_allocated )
 	{
@@ -198,6 +346,54 @@ f_FindBlockFromPayload
 	}
 
 	return( ptr_mem_block );
+}
+
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
+static void
+f_DumpGlobalBlock_Long
+( void )
+{
+	LOG( LOG_SYS_ID, "Dumping g_mem_manager \n" );
+  LOG( LOG_SYS_ID, "          num_mem_blocks_defined : %i \n", g_mem_manager.num_mem_blocks_defined );
+  LOG( LOG_SYS_ID, "        num_mem_blocks_allocated : %i \n", g_mem_manager.num_mem_blocks_allocated );
+  LOG( LOG_SYS_ID, "                   block_id_next : %i \n", g_mem_manager.block_id_next );
+  LOG( LOG_SYS_ID, "         num_bytes_allocated_now : %i \n", g_mem_manager.num_bytes_allocated_now );
+  LOG( LOG_SYS_ID, "       num_bytes_allocated_count : %i \n", g_mem_manager.num_bytes_allocated_count );
+  LOG( LOG_SYS_ID, "  num_mem_blocks_allocated_count : %i \n", g_mem_manager.num_mem_blocks_allocated_count );
+
+  return;
+}
+
+/********************************************************
+* FUNCTION NAME:
+*
+* ARGUMENT TYPE I/O DESCRIPTION
+* -------- ---- --- -----------
+*
+* RETURNS:
+*
+*********************************************************/
+static void
+f_DumpGlobalBlock_Short
+( void )
+{
+	LOG( LOG_SYS_ID,
+			"MEM State :: Bytes Allocated Now:%i, Blocks Allocated Now:[%i/%i] (Total Bytes:%i, Total Blocks:%i) \n",
+			g_mem_manager.num_bytes_allocated_now,
+			g_mem_manager.num_mem_blocks_allocated,
+			g_mem_manager.num_mem_blocks_defined,
+			g_mem_manager.num_bytes_allocated_count,
+			g_mem_manager.num_mem_blocks_allocated_count );
+
+	return;
 }
 
 
